@@ -5,18 +5,12 @@ import (
 	"errors"
 	"log"
 	"os"
-	//	"time"
 )
-
-var watcher *fsnotify.Watcher
-var watched map[string]struct{}
 
 func watch(queue chan string) (chan *fsnotify.FileEvent, error) {
 
-	watched = make(map[string]struct{})
-
-	var err error
-	watcher, err = fsnotify.NewWatcher()
+	watched := make(map[string]struct{})
+	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
@@ -61,19 +55,15 @@ func watch(queue chan string) (chan *fsnotify.FileEvent, error) {
 					log.Println(len(watched), " ", path)
 					watched[path] = struct{}{}
 					we := watcher.Watch(path)
-					if we != nil {
-						go func() {
-							watcher.Error <- we
-						}()
-						break
-					}
 					go func() {
-						//time.Sleep(time.Millisecond * 1000)
-						we = watch_walk(path, queue)
 						if we != nil {
-							go func() {
-								watcher.Error <- we
-							}()
+							watcher.Error <- we
+							return
+						}
+
+						err := watch_walk(path, queue)
+						if err != nil {
+							watcher.Error <- err
 							return
 						}
 					}()
@@ -109,9 +99,7 @@ func watch_walk(path string, queue chan string) error {
 
 	for _, ffi := range fi {
 		if ffi.IsDir() {
-			//log.Println("queuing", path+"/"+ffi.Name())
 			queue <- path + "/" + ffi.Name()
-			//log.Println("done")
 		}
 	}
 
